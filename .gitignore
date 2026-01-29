@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+backend/.env
+.env
+
+# Xcode / Swift
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+
