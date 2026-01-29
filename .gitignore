@@ -1,6 +1,23 @@
 # macOS
 .DS_Store
 
+# Secrets
+.env
+backend/.env
+
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+
+# Xcode / Swift
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+# macOS
+.DS_Store
+
 # Python
 backend/.venv/
 __pycache__/
