@@ -28,95 +28,136 @@
 
 
 import SwiftUI
-// SwiftUI is Apple’s framework for building UI declaratively
-
 import CoreLocation
-// Needed because we use CLLocation types (latitude / longitude)
 
+// A simple model that represents one category shown to the user
+struct CategoryOption: Identifiable {
+    let id = UUID()
+    let title: String                  // Text shown in the UI
+    let geoapifyCategories: [String]   // Categories sent to the backend
+}
 
 // ContentView defines the main screen of the app
 struct ContentView: View {
-    
-    // @StateObject means SwiftUI owns this object
-    // and keeps it alive while the view exists
-    
+
+    // Manages location permissions and GPS updates
     @StateObject private var locationManager = LocationManager()
-    
-    // APIClient handles communication with the backend
+
+    // Handles all communication with the backend
     private let api = APIClient()
 
-    // Stores the list of places returned by the backend
+    // Stores the list of places returned from the backend
     @State private var places: [Place] = []
-    
-    // Tracks whether a request is currently in progress
+
+    // Tracks whether a backend request is in progress
     @State private var isLoading = false
-    
-    // Stores an error message to show in the UI (if any)
+
+    // Stores an error message to display if something goes wrong
     @State private var errorMessage: String?
 
-    
-    // The UI layout for this screen
+    // Tracks which category the user selected
+    @State private var selectedCategory: CategoryOption?
+
+    // Top categories shown to the user (mocked for now)
+    // Later this can be generated dynamically based on user context
+    private let topCategoryOptions: [CategoryOption] = [
+        CategoryOption(title: "Cafes Near You", geoapifyCategories: ["catering.cafe"]),
+        CategoryOption(title: "Popular Restaurants", geoapifyCategories: ["catering.restaurant"]),
+        CategoryOption(title: "Coffee & Food", geoapifyCategories: ["catering.cafe", "catering.restaurant"]),
+        CategoryOption(title: "Parks to Relax", geoapifyCategories: ["leisure.park"])
+    ]
+
+    // Defines the UI layout
     var body: some View {
         NavigationView {
             VStack(spacing: 12) {
-                
-                // Show the user’s coordinates if location is available
+
+                // Show the user's location status
                 if let loc = locationManager.location {
                     Text("Lat: \(loc.coordinate.latitude), Lon: \(loc.coordinate.longitude)")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                }
-                
-                else {
-                    // Shown while location is still being retrieved
-
-                    Text("Location not available yet")
+                } else {
+                    Text("Getting your location...")
                         .foregroundStyle(.secondary)
                 }
 
-                // Display an error message if something went wrong
+                // Show an error message if something fails
                 if let errorMessage {
                     Text(errorMessage)
                         .foregroundStyle(.red)
                         .font(.footnote)
                 }
-                
-    
 
-                // Button that triggers backend request
-                Button(isLoading ? "Loading..." : "Get Recommendations") {
-                    
-                    // Task runs async code from a button tap
-                    Task { await loadRecommendations() }
+                // Header for the category section
+                Text("Top Categories for You")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Vertical list of category options
+                VStack(spacing: 8) {
+                    ForEach(topCategoryOptions) { option in
+                        Button {
+                            // Save selected category
+                            selectedCategory = option
+
+                            // Load recommendations for this category
+                            Task { await loadRecommendations(for: option) }
+                        } label: {
+                            HStack {
+                                Text(option.title)
+
+                                Spacer()
+
+                                // Indicates tapping this leads to results
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(
+                                        selectedCategory?.id == option.id
+                                        ? Color.blue.opacity(0.15)
+                                        : Color.secondary.opacity(0.1)
+                                    )
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isLoading || locationManager.location == nil)
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                
-                // Disable button if loading or location is missing
-                .disabled(isLoading || locationManager.location == nil)
 
-                
-                // Display the list of places
+                // Show which category is currently active
+                if let selectedCategory {
+                    Text("Showing results for: \(selectedCategory.title)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                // Show loading indicator while fetching data
+                if isLoading {
+                    ProgressView("Loading recommendations...")
+                        .padding(.vertical)
+                }
+
+                // List of places returned from the backend
                 List(places) { place in
-                    
                     VStack(alignment: .leading, spacing: 4) {
-                        
-                        // Place name
+
                         Text(place.name ?? "Unnamed place")
                             .font(.headline)
-                        
-                        // Place address
-                        Text(place.address ?? "No address")
+
+                        Text(place.address ?? "No address available")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
-                        // Distance + score (if distance exists)
                         if let d = place.distance_m {
-                            Text("Distance: \(Int(d)) m  •  Score: \(String(format: "%.2f", place.score))")
+                            Text("Distance: \(Int(d)) m • Score: \(String(format: "%.2f", place.score))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                        }
-                        
-                        else {
+                        } else {
                             Text("Score: \(String(format: "%.2f", place.score))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -126,49 +167,43 @@ struct ContentView: View {
             }
             .padding()
             .navigationTitle("Your Places")
-            
-            // Runs when the view appears on screen
+
+            // Request location access when the screen appears
             .onAppear {
-                // Ask for location once UI loads
                 locationManager.requestLocation()
             }
         }
     }
-    
-    
-    
-    // Ensures UI updates happen on the main thread
+
+    // Fetch recommendations for a selected category
     @MainActor
-    private func loadRecommendations() async {
-        
-        // Clear previous error
+    private func loadRecommendations(for option: CategoryOption) async {
+
+        // Clear previous errors
         errorMessage = nil
-        
-        // Make sure we have a valid location
+
+        // Ensure location is available
         guard let loc = locationManager.location else { return }
 
-        
         // Show loading state
         isLoading = true
-        
-        // Ensure loading state is turned off when function exits
         defer { isLoading = false }
 
         do {
-            // Call the backend using the user’s coordinates
+            // Call backend with user location and selected category
             places = try await api.fetchRecommendations(
                 lat: loc.coordinate.latitude,
-                lon: loc.coordinate.longitude
+                lon: loc.coordinate.longitude,
+                categories: option.geoapifyCategories
             )
         } catch {
-            
-            // Show any error that occurs
+            // Display any error that occurs
             errorMessage = error.localizedDescription
         }
     }
 }
 
-// Preview provider to display the ContentView in Xcode's preview window
+// Preview for Xcode canvas
 #Preview {
     ContentView()
 }
