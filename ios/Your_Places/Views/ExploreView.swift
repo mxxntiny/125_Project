@@ -30,15 +30,10 @@
 import SwiftUI
 import CoreLocation
 
-// A simple model that represents one category shown to the user
-struct CategoryOption: Identifiable {
-    let id = UUID()
-    let title: String                  // Text shown in the UI
-    let geoapifyCategories: [String]   // Categories sent to the backend
-}
+
 
 // ContentView defines the main screen of the app
-struct ContentView: View {
+struct ExploreView: View {
 
     // Manages location permissions and GPS updates
     @StateObject private var locationManager = LocationManager()
@@ -69,7 +64,7 @@ struct ContentView: View {
 
     // Defines the UI layout
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 12) {
 
                 // Show the user's location status
@@ -205,5 +200,5 @@ struct ContentView: View {
 
 // Preview for Xcode canvas
 #Preview {
-    ContentView()
+    ExploreView()
 }

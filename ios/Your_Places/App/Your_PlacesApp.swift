@@ -27,21 +27,13 @@
 */
 
 import SwiftUI
-// SwiftUI is Apple’s framework for building user interfaces
 
-// @main tells iOS: "This is the entry point of the app"
 @main
-struct Your_PlacesApp: App {
-    
-    // The body defines the scenes (windows) this app provides
+struct YourPlacesApp: App {
     var body: some Scene {
-        
-        // WindowGroup creates the main app window
-        // (supports multiple windows on iPad/macOS if needed)
         WindowGroup {
-            
-            // ContentView is the first screen shown to the user
-            ContentView()
+            RootView()
         }
     }
 }
+
