@@ -17,6 +17,7 @@ struct OnboardingFlowView: View {
 
     var body: some View {
         NavigationStack {
+            
             VStack {
                 switch step {
                 case 0:
