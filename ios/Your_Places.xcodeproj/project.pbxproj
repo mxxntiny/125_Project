@@ -257,6 +257,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Your-Places-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Your Places";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "We read your steps, heart rate, and active calories to display them in the app.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "We use your location to provide nearby recommendations.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We use your location to show places near you.";
@@ -293,6 +294,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Your-Places-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Your Places";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "We read your steps, heart rate, and active calories to display them in the app.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "We use your location to provide nearby recommendations.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We use your location to show places near you.";

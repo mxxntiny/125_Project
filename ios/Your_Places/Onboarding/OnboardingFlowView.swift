@@ -31,8 +31,8 @@ struct OnboardingFlowView: View {
                 default:
                     CategoryStep(
                         selected: Binding(
-                            get: { Set(profile.selectedCategories) },
-                            set: { profile.selectedCategories = Array($0).sorted() }
+                            get: { Set(profile.selectedCategoryOptions) },
+                            set: { profile.selectedCategoryOptions = Array($0) }
                         ),
                         onBack: { step = 1 },
                         onFinish: {

@@ -8,13 +8,49 @@
 import SwiftUI
 
 struct CategoryStep: View {
-    @Binding var selected: Set<String>
+    @Binding var selected: Set<CategoryOption>
     let onBack: () -> Void
     let onFinish: () -> Void
 
-    private let categories = [
-        "Coffee", "Food", "Dessert", "Study", "Fitness",
-        "Outdoors", "Shopping", "Entertainment", "Nightlife", "Parks"
+    private let categories: [CategoryOption] = [
+        CategoryOption(title: "Coffee", geoapifyCategories: [
+            "catering.cafe.coffee",
+            "catering.cafe.coffee_shop"
+        ]),
+        CategoryOption(title: "Food", geoapifyCategories: [
+            "catering.restaurant"
+        ]),
+        CategoryOption(title: "Dessert", geoapifyCategories: [
+            "catering.cafe.dessert",
+            "catering.ice_cream"
+        ]),
+        CategoryOption(title: "Study", geoapifyCategories: [
+            "education.library",
+            "office.coworking"
+        ]),
+        CategoryOption(title: "Fitness", geoapifyCategories: [
+            "sport.fitness.fitness_centre",
+            "sport.sports_centre"
+        ]),
+        CategoryOption(title: "Outdoors", geoapifyCategories: [
+            "natural",
+            "leisure.park"
+        ]),
+        CategoryOption(title: "Shopping", geoapifyCategories: [
+            "commercial.shopping_mall",
+            "commercial.supermarket"
+        ]),
+        CategoryOption(title: "Entertainment", geoapifyCategories: [
+            "entertainment.cinema",
+            "entertainment.museum"
+        ]),
+        CategoryOption(title: "Nightlife", geoapifyCategories: [
+            "catering.bar",
+            "adult.nightclub"
+        ]),
+        CategoryOption(title: "Parks", geoapifyCategories: [
+            "leisure.park"
+        ])
     ]
 
     var body: some View {
@@ -29,15 +65,15 @@ struct CategoryStep: View {
 
             List {
                 Section("Categories") {
-                    ForEach(categories, id: \.self) { cat in
+                    ForEach(categories) { option in
                         Button {
-                            toggle(cat)
+                            toggle(option)
                         } label: {
                             HStack {
-                                Text(cat)
+                                Text(option.title)
                                 Spacer()
-                                Image(systemName: selected.contains(cat) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(selected.contains(cat) ? .primary : .tertiary)
+                                Image(systemName: selected.contains(option) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(selected.contains(option) ? .primary : .tertiary)
                             }
                         }
                         .foregroundStyle(.primary)
@@ -64,8 +100,11 @@ struct CategoryStep: View {
         }
     }
 
-    private func toggle(_ cat: String) {
-        if selected.contains(cat) { selected.remove(cat) }
-        else { selected.insert(cat) }
+    private func toggle(_ option: CategoryOption) {
+        if selected.contains(option) {
+            selected.remove(option)
+        } else {
+            selected.insert(option)
+        }
     }
 }
