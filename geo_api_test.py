@@ -79,3 +79,14 @@ def traffic_info(usr, place):
 #get_places(temp_coords, temp_category)
 #get_place_details(temp_id)
 #traffic_info(user_coords, temp_place_coords)
+
+def get_user_pref():
+    ''' Simulates user profile via dictionary. Keys represent time and values represent secondary dectionaries, where the key is an event and the value is the number of times the
+    user had frequesnted that location at the given time.'''
+    user_sim = {1:{"Study":2,"Nightlife":4, "Entertainment":3}, 2:{"Study":1, "Nightlife":2}, 3:{"Study":1, "Nightlife":1}, 4:{"Study":1}, 5:{"Study":2, "Fitness":2}, 6:{"Study":2, "Fitness": 3}, 7:{"Coffee":3, "Food":2,"Study":1, "Fitness":5}, 8:{"Coffee":5,"Food":3, "Study":1,}, 9:{"Coffee":2,"Study":3,}, 10:{"Study":3,}, 11:{"Study":4,}, 12:{"Coffee":3,"Food":6, "Study":1,"Outdoors":3}, 13:{"Food":4, "Study":2,"Dessert":2, "Parks":4}, 14:{"Study":2,}, 15:{"Study":4,}, 16:{"Study":5,}, 17:{"Study":3,"Shopping":4, "Dessert":4}, 18:{"Food":3, "Outdoors":3, "Shopping":5}, 19:{"Food":5, "Outdoors":4}, 20:{"Food":3, "Fitness" :4, "Outdoors":2}, 21:{"Fitness":5, "Entertainment":7, "Parks":5}, 22:{"Fitness":3, "Nightlife":5, "Entertainment" :4}, 23:{"Study":2, "Nightlife":4, "Entertainment" :3}, 24:{"Study":2, "Nightlife":3, "Dessert":1}}
+    time_obj = time.localtime()
+    vals_list = user_sim[time_obj.tm_hour + (time_obj.tm_min > 30)]
+    return(sorted(vals_list.items(), key=lambda item:item[1])[-1][0])
+
+
+
