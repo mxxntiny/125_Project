@@ -7,108 +7,115 @@
 
 
 /* This file is responsible ONLY for:
-// - Communicating with the backend server
-// - Sending HTTP requests (JSON) to the backend
-// - Receiving and decoding responses into Swift models
-//
-// You should modify this file ONLY when:
-// - Backend endpoints change
-// - Request or response JSON formats change
-// - Network error handling needs improvement
-// - Authentication or headers are added
-//
-// This file should NOT contain:
-// - UI logic
-// - Location permission logic
-// - User preference or profile decision logic
-//
-// Keep this file focused on networking and data transfer only.
+ // - Communicating with the backend server
+ // - Sending HTTP requests (JSON) to the backend
+ // - Receiving and decoding responses into Swift models
+ //
+ // Keep this file focused on networking and data transfer only.
 */
 
 import Foundation
 // Foundation gives us tools for URLs, HTTP requests, and JSON handling
 
 final class APIClient {
-    
-    // This is the base address of the backend server.
-    // While using the iOS Simulator, 127.0.0.1 points to your Mac.
-    private let baseURL = URL(string: "http://127.0.0.1:8000")!
-    
 
-    
-    /* fetchRecommendations sends the user's location to the backend
-    // and returns a list of nearby places.
-    //
-    // async  -> this runs asynchronously (non-blocking)
-    // throws -> this function can fail and throw an error
-    // [Place] -> returns an array of Place objects
-     */
-    
+    // If testing on a physical device, "127.0.0.1" will NOT point to your Mac.
+    // You'll need to use your Mac's LAN IP instead.
+    private let baseURL = URL(string: "http://127.0.0.1:8000")!
+
+    // MARK: - Recommendations
+
     func fetchRecommendations(
         lat: Double,
         lon: Double,
-        categories: [String]
+        categories: [String],
+        includeTraffic: Bool = true
     ) async throws -> [Place] {
-        
 
-        
-        // Build the full endpoint URL:
-        // http://127.0.0.1:8000/recommendations
         let url = baseURL.appendingPathComponent("recommendations")
-        
-        // Create an HTTP request object
         var request = URLRequest(url: url)
-        
-        // Set the HTTP method to POST
-        // HTTP POST method sends data to a server to create or update a resource, with the data included in the body of the request message.
         request.httpMethod = "POST"
-        
-        // Tells the backend that we are sending JSON data
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        // Create the JSON body that will be sent to the backend
-        // This is equivalent to a Python dictionary
-        // TODO: Update based on Users preferences
+        // Updated request body to match new backend fields
         let body: [String: Any] = [
             "lat": lat,
             "lon": lon,
             "radius_m": 1500,
             "limit": 25,
             "categories": categories,
-            "prefer_close": 0.7,
-            "prefer_high_rating": 0.3
+
+            // Weights (tune as you like; these are reasonable defaults)
+            "prefer_close": 0.55,
+            "prefer_high_rating": 0.15,
+            "prefer_low_traffic": includeTraffic ? 0.30 : 0.0,
+
+            // Feature toggles
+            "include_traffic": includeTraffic,
+            "include_details": false
         ]
 
-        // Convert the dictionary into JSON data
-        // 'try' is required because JSON conversion can fail
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        // Send the HTTP request to the backend and wait for a response
-        // 'data' contains the response body (JSON)
-        // 'response' contains metadata like the HTTP status code
         let (data, response) = try await URLSession.shared.data(for: request)
 
-        // Check if the response is an HTTP response
-        // and if the status code is NOT in the 200–299 range
-        if let http = response as? HTTPURLResponse,
-            !(200...299).contains(http.statusCode) {
-            
-            // Convert error body to readable text (if possible)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
             let text = String(data: data, encoding: .utf8) ?? "<no body>"
-            
-            // Throw an error with the status code and message
             throw NSError(
                 domain: "APIClient",
                 code: http.statusCode,
-                userInfo: [
-                    NSLocalizedDescriptionKey: 
-                        "Backend error \(http.statusCode): \(text)"
-                ]
+                userInfo: [NSLocalizedDescriptionKey: "Backend error \(http.statusCode): \(text)"]
             )
         }
 
-        // Convert the JSON response into an array of Place objects
-        // This requires the JSON to match the Place model exactly
         return try JSONDecoder().decode([Place].self, from: data)
+    }
+
+    // MARK: - Place Details
+
+    struct PlaceDetails: Codable {
+        let place_id: String
+        let opening_hours: OpeningHours?
+        let phone: String?
+        let website: String?
+
+        // We keep this flexible because Geoapify opening_hours can be nested/variable.
+        // If you want a stricter model later, we can define it.
+        struct OpeningHours: Codable {
+            let raw: String?
+
+            // This is a small trick: sometimes opening_hours can be an object, sometimes a string.
+            // For now we’ll decode it as a generic wrapper.
+            init(from decoder: Decoder) throws {
+                let container = try decoder.singleValueContainer()
+                if let s = try? container.decode(String.self) {
+                    raw = s
+                } else {
+                    raw = nil
+                }
+            }
+        }
+    }
+
+    func fetchPlaceDetails(placeId: String) async throws -> PlaceDetails {
+        let url = baseURL
+            .appendingPathComponent("place-details")
+            .appendingPathComponent(placeId)
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            let text = String(data: data, encoding: .utf8) ?? "<no body>"
+            throw NSError(
+                domain: "APIClient",
+                code: http.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: "Backend error \(http.statusCode): \(text)"]
+            )
+        }
+
+        return try JSONDecoder().decode(PlaceDetails.self, from: data)
     }
 }

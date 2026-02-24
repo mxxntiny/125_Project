@@ -13,9 +13,11 @@ import CoreLocation
 struct ExploreView: View {
 
     @EnvironmentObject private var profile: UserProfileStore
-    @EnvironmentObject private var locationManager: LocationManager // optional: for displaying raw coords
+    @EnvironmentObject private var locationManager: LocationManager
 
     @StateObject private var vm: ExploreViewModel
+
+    @State private var selectedPlace: Place? = nil
 
     private var userCategoryOptions: [CategoryOption] {
         profile.selectedCategoryOptions
@@ -34,7 +36,6 @@ struct ExploreView: View {
         NavigationStack {
             VStack(spacing: 12) {
 
-                // Optional debug display (View still can read manager, but doesn’t orchestrate logic)
                 if let loc = locationManager.location {
                     Text("Lat: \(loc.coordinate.latitude), Lon: \(loc.coordinate.longitude)")
                         .font(.footnote)
@@ -99,29 +100,48 @@ struct ExploreView: View {
                 }
 
                 List(vm.places) { place in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(place.name ?? "Unnamed place")
-                            .font(.headline)
+                    Button {
+                        selectedPlace = place
+                    } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(place.name ?? "Unnamed place")
+                                .font(.headline)
 
-                        Text(place.address ?? "No address available")
-                            .font(.subheadline)
+                            Text(place.address ?? "No address available")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+
+                            // Explanation signals row
+                            VStack(alignment: .leading, spacing: 2) {
+                                if let d = place.distance_m {
+                                    Text("Distance: \(Int(d)) m")
+                                }
+
+                                if let t = place.travel_time_s {
+                                    let mins = max(1, t / 60)
+                                    Text("ETA: \(mins) min")
+                                }
+
+                                if let delay = place.traffic_delay_s, delay > 0 {
+                                    let mins = max(1, delay / 60)
+                                    Text("Traffic delay: +\(mins) min")
+                                }
+
+                                Text("Score: \(String(format: "%.2f", place.score))")
+                            }
+                            .font(.caption)
                             .foregroundStyle(.secondary)
-
-                        if let d = place.distance_m {
-                            Text("Distance: \(Int(d)) m • Score: \(String(format: "%.2f", place.score))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Text("Score: \(String(format: "%.2f", place.score))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
                         }
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .padding()
             .navigationTitle("Your Places")
             .onAppear { vm.onAppear() }
+            .sheet(item: $selectedPlace) { place in
+                PlaceDetailsSheet(place: place)
+            }
         }
     }
 }

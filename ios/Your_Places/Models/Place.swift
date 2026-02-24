@@ -38,7 +38,9 @@ struct Place: Decodable, Identifiable {
 
     // SwiftUI requires a unique id for each item in a list
     // The backend does not provide an id, so we generate one locally
-    let id = UUID()
+    var id: String { place_id ?? "\(lat),\(lon),\(name ?? "")" }
+
+    let place_id: String?
 
     // Name of the place (optional)
     let name: String?
@@ -60,4 +62,9 @@ struct Place: Decodable, Identifiable {
     
     // Overall recommendation score calculated by the backend
     let score: Double
+    
+    let route_length_m: Int?
+    let travel_time_s: Int?
+    let traffic_delay_s: Int?
+    let traffic_length_m: Int?
 }
