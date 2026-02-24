@@ -17,13 +17,16 @@ import SwiftUI
 @main
 struct YourPlacesApp: App {
 
-    // Shared singletons for the whole app session
     @StateObject private var profile = UserProfileStore()
     @StateObject private var locationManager = LocationManager()
 
+    // Simple injection: build the service at app start
+    private let recommendationService: RecommendationFetching =
+        RecommendationService(api: APIClient())
+
     var body: some Scene {
         WindowGroup {
-            RootView()
+            RootView(recommendationService: recommendationService)
                 .environmentObject(profile)
                 .environmentObject(locationManager)
         }

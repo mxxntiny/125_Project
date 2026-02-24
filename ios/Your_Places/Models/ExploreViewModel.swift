@@ -5,16 +5,14 @@
 //  Created by Aidan Huerta on 2/23/26.
 //
 //
-//  Architecture refactor (MVVM):
-//  - Holds Explore screen state (places/loading/error/selected category)
-//  - Performs API calls via APIClient
-//  - Keeps ExploreView focused on UI rendering + user interactions
+//  MVVM: Explore screen state + orchestration.
+//  Refactor (Phase 2): depends on RecommendationFetching (protocol),
+//  not directly on APIClient.
 //
 
 import Foundation
 import CoreLocation
 import Combine
-
 
 @MainActor
 final class ExploreViewModel: ObservableObject {
@@ -23,10 +21,10 @@ final class ExploreViewModel: ObservableObject {
     @Published var errorMessage: String? = nil
     @Published var selectedCategory: CategoryOption? = nil
 
-    private let api: APIClient
+    private let recommendationService: RecommendationFetching
 
-    init(api: APIClient) {
-        self.api = api
+    init(recommendationService: RecommendationFetching) {
+        self.recommendationService = recommendationService
     }
 
     func selectCategory(_ option: CategoryOption) {
@@ -44,7 +42,7 @@ final class ExploreViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
-            let results = try await api.fetchRecommendations(
+            let results = try await recommendationService.fetchRecommendations(
                 lat: coordinate.latitude,
                 lon: coordinate.longitude,
                 categories: option.geoapifyCategories

@@ -10,11 +10,19 @@ import SwiftUI
 struct RootView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
 
+    let recommendationService: RecommendationFetching
+
     var body: some View {
         if hasCompletedOnboarding {
-            MainTabView()
+            MainTabView(recommendationService: recommendationService)
         } else {
             OnboardingFlowView()
         }
     }
+}
+
+#Preview {
+    RootView(recommendationService: RecommendationService(api: APIClient()))
+        .environmentObject(UserProfileStore())
+        .environmentObject(LocationManager())
 }

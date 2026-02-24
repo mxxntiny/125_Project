@@ -8,16 +8,30 @@
 import SwiftUI
 
 struct MainTabView: View {
+    let recommendationService: RecommendationFetching
+
     var body: some View {
         TabView {
-            ExploreView()
-                .tabItem { Label("Explore", systemImage: "map") }
+            ExploreView(recommendationService: recommendationService)
+                .tabItem {
+                    Label("Explore", systemImage: "map")
+                }
 
             SavedView()
-                .tabItem { Label("Saved", systemImage: "bookmark") }
+                .tabItem {
+                    Label("Saved", systemImage: "bookmark")
+                }
 
             ProfileView()
-                .tabItem { Label("Profile", systemImage: "person") }
+                .tabItem {
+                    Label("Profile", systemImage: "person")
+                }
         }
     }
+}
+
+#Preview {
+    MainTabView(recommendationService: RecommendationService(api: APIClient()))
+        .environmentObject(UserProfileStore())
+        .environmentObject(LocationManager())
 }

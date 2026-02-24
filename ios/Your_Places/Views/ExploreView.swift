@@ -12,22 +12,23 @@ import CoreLocation
 
 struct ExploreView: View {
 
-    // Shared state injected from the App root
     @EnvironmentObject private var profile: UserProfileStore
     @EnvironmentObject private var locationManager: LocationManager
 
-    // ViewModel owns Explore screen state + networking
-    @StateObject private var vm = ExploreViewModel(api: APIClient())
+    @StateObject private var vm: ExploreViewModel
 
     private var userCategoryOptions: [CategoryOption] {
         profile.selectedCategoryOptions
+    }
+
+    init(recommendationService: RecommendationFetching) {
+        _vm = StateObject(wrappedValue: ExploreViewModel(recommendationService: recommendationService))
     }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 12) {
 
-                // Location display
                 if let loc = locationManager.location {
                     Text("Lat: \(loc.coordinate.latitude), Lon: \(loc.coordinate.longitude)")
                         .font(.footnote)
@@ -37,7 +38,6 @@ struct ExploreView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                // Error display
                 if let errorMessage = vm.errorMessage {
                     Text(errorMessage)
                         .foregroundStyle(.red)
@@ -131,7 +131,7 @@ struct ExploreView: View {
 }
 
 #Preview {
-    ExploreView()
+    ExploreView(recommendationService: RecommendationService(api: APIClient()))
         .environmentObject(UserProfileStore())
         .environmentObject(LocationManager())
 }
