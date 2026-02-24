@@ -5,27 +5,53 @@
 //  Created by Aidan Huerta on 2/9/26.
 //
 
-import SwiftUI
+//
+//  UserProfileStore.swift
+//  Your_Places
+//
+//  Stores user onboarding info (name + selected categories)
+//  and persists it locally using UserDefaults.
+//
+
+import Foundation
 import Combine
 
 final class UserProfileStore: ObservableObject {
-    @AppStorage("userName") var userName: String = ""
 
-    // Store selected CategoryOption objects as JSON text in AppStorage
-    @AppStorage("selectedCategoryOptionsJSON") private var selectedCategoryOptionsJSON: String = ""
+    // MARK: - Keys
 
-    var selectedCategoryOptions: [CategoryOption] {
-        get {
-            guard let data = selectedCategoryOptionsJSON.data(using: .utf8) else { return [] }
-            return (try? JSONDecoder().decode([CategoryOption].self, from: data)) ?? []
-        }
-        set {
-            let data = (try? JSONEncoder().encode(newValue)) ?? Data()
-            selectedCategoryOptionsJSON = String(data: data, encoding: .utf8) ?? ""
+    private enum Keys {
+        static let userName = "userName"
+        static let selectedCategoryOptionsJSON = "selectedCategoryOptionsJSON"
+    }
+
+    // MARK: - Published state (single source of truth in-memory)
+
+    @Published var userName: String {
+        didSet { UserDefaults.standard.set(userName, forKey: Keys.userName) }
+    }
+
+    @Published var selectedCategoryOptions: [CategoryOption] {
+        didSet { saveSelectedCategories() }
+    }
+
+    // MARK: - Init
+
+    init(userDefaults: UserDefaults = .standard) {
+        let storedName = userDefaults.string(forKey: Keys.userName) ?? ""
+        self.userName = storedName
+
+        if let json = userDefaults.string(forKey: Keys.selectedCategoryOptionsJSON),
+           let data = json.data(using: .utf8),
+           let decoded = try? JSONDecoder().decode([CategoryOption].self, from: data) {
+            self.selectedCategoryOptions = decoded
+        } else {
+            self.selectedCategoryOptions = []
         }
     }
 
-    // Convenience: just the display titles
+    // MARK: - Derived helpers
+
     var selectedCategoryTitles: [String] {
         selectedCategoryOptions.map { $0.title }
     }
@@ -33,5 +59,13 @@ final class UserProfileStore: ObservableObject {
     var isValid: Bool {
         !userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         && !selectedCategoryOptions.isEmpty
+    }
+
+    // MARK: - Persistence
+
+    private func saveSelectedCategories() {
+        let data = (try? JSONEncoder().encode(selectedCategoryOptions)) ?? Data()
+        let json = String(data: data, encoding: .utf8) ?? ""
+        UserDefaults.standard.set(json, forKey: Keys.selectedCategoryOptionsJSON)
     }
 }

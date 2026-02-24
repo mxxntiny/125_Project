@@ -5,11 +5,12 @@
 //  Created by Aidan Huerta on 2/9/26.
 //
 
+
 import SwiftUI
 import Combine
 
 struct OnboardingFlowView: View {
-    @StateObject private var profile = UserProfileStore()
+    @EnvironmentObject private var profile: UserProfileStore
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
 
     // 0 = landing, 1 = name, 2 = categories
@@ -17,17 +18,18 @@ struct OnboardingFlowView: View {
 
     var body: some View {
         NavigationStack {
-            
             VStack {
                 switch step {
                 case 0:
                     LandingStep(onContinue: { step = 1 })
+
                 case 1:
                     NameStep(
                         name: $profile.userName,
                         onBack: { step = 0 },
                         onContinue: { step = 2 }
                     )
+
                 default:
                     CategoryStep(
                         selected: Binding(

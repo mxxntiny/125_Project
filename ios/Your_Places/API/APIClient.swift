@@ -47,7 +47,7 @@ final class APIClient {
     func fetchRecommendations(
         lat: Double,
         lon: Double,
-        categories: [String],
+        categories: [String]
     ) async throws -> [Place] {
         
 

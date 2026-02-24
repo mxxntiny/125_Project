@@ -4,46 +4,21 @@
 //
 //  Created by Aidan Huerta on 1/29/26.
 //
-
-
-/* This file defines the main user interface of the app.
-// It is responsible for:
-// - Requesting the user’s location when the view appears
-// - Triggering backend API calls based on user interaction
-// - Managing loading, error, and result states
-// - Displaying recommended places returned from the backend
 //
-// You should modify this file when:
-// - Changing the UI layout or user interaction flow
-// - Adjusting when or how API requests are triggered
-// - Adding filters, buttons, or user-driven controls
 //
-// This file should NOT contain:
-// - Location permission or GPS logic (LocationManager)
-// - Networking or request-building logic (APIClient)
-// - Data decoding or backend response definitions (Place)
-//
-// Keep this file focused on UI and app flow orchestration.
-*/
-
 
 import SwiftUI
 import CoreLocation
 
 struct ExploreView: View {
 
-    // ✅ Use the profile store (same as onboarding)
-    @StateObject private var profile = UserProfileStore()
+    // Shared state injected from the App root
+    @EnvironmentObject private var profile: UserProfileStore
+    @EnvironmentObject private var locationManager: LocationManager
 
-    @StateObject private var locationManager = LocationManager()
-    private let api = APIClient()
+    // ViewModel owns Explore screen state + networking
+    @StateObject private var vm = ExploreViewModel(api: APIClient())
 
-    @State private var places: [Place] = []
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var selectedCategory: CategoryOption?
-
-    // Pull selected categories directly from profile
     private var userCategoryOptions: [CategoryOption] {
         profile.selectedCategoryOptions
     }
@@ -63,7 +38,7 @@ struct ExploreView: View {
                 }
 
                 // Error display
-                if let errorMessage {
+                if let errorMessage = vm.errorMessage {
                     Text(errorMessage)
                         .foregroundStyle(.red)
                         .font(.footnote)
@@ -81,8 +56,15 @@ struct ExploreView: View {
                     } else {
                         ForEach(userCategoryOptions) { option in
                             Button {
-                                selectedCategory = option
-                                Task { await loadRecommendations(for: option) }
+                                vm.selectCategory(option)
+
+                                guard let loc = locationManager.location else { return }
+                                Task {
+                                    await vm.loadRecommendations(
+                                        for: option,
+                                        coordinate: loc.coordinate
+                                    )
+                                }
                             } label: {
                                 HStack {
                                     Text(option.title)
@@ -94,31 +76,31 @@ struct ExploreView: View {
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
                                         .fill(
-                                            selectedCategory?.id == option.id
+                                            vm.selectedCategory?.id == option.id
                                             ? Color.blue.opacity(0.15)
                                             : Color.secondary.opacity(0.1)
                                         )
                                 )
                             }
                             .buttonStyle(.plain)
-                            .disabled(isLoading || locationManager.location == nil)
+                            .disabled(vm.isLoading || locationManager.location == nil)
                         }
                     }
                 }
 
-                if let selectedCategory {
+                if let selectedCategory = vm.selectedCategory {
                     Text("Showing results for: \(selectedCategory.title)")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                if isLoading {
+                if vm.isLoading {
                     ProgressView("Loading recommendations...")
                         .padding(.vertical)
                 }
 
-                List(places) { place in
+                List(vm.places) { place in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(place.name ?? "Unnamed place")
                             .font(.headline)
@@ -146,27 +128,10 @@ struct ExploreView: View {
             }
         }
     }
-
-    @MainActor
-    private func loadRecommendations(for option: CategoryOption) async {
-        errorMessage = nil
-        guard let loc = locationManager.location else { return }
-
-        isLoading = true
-        defer { isLoading = false }
-
-        do {
-            places = try await api.fetchRecommendations(
-                lat: loc.coordinate.latitude,
-                lon: loc.coordinate.longitude,
-                categories: option.geoapifyCategories   // REAL backend keys
-            )
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
 }
 
 #Preview {
     ExploreView()
+        .environmentObject(UserProfileStore())
+        .environmentObject(LocationManager())
 }
