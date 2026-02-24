@@ -11,10 +11,14 @@ struct RootView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
 
     let recommendationService: RecommendationFetching
+    let locationProvider: LocationProviding
 
     var body: some View {
         if hasCompletedOnboarding {
-            MainTabView(recommendationService: recommendationService)
+            MainTabView(
+                recommendationService: recommendationService,
+                locationProvider: locationProvider
+            )
         } else {
             OnboardingFlowView()
         }
@@ -22,7 +26,10 @@ struct RootView: View {
 }
 
 #Preview {
-    RootView(recommendationService: RecommendationService(api: APIClient()))
-        .environmentObject(UserProfileStore())
-        .environmentObject(LocationManager())
+    RootView(
+        recommendationService: RecommendationService(api: APIClient()),
+        locationProvider: LocationService(manager: LocationManager())
+    )
+    .environmentObject(UserProfileStore())
+    .environmentObject(LocationManager())
 }

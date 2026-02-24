@@ -22,24 +22,37 @@ final class ExploreViewModel: ObservableObject {
     @Published var selectedCategory: CategoryOption? = nil
 
     private let recommendationService: RecommendationFetching
+    private let locationProvider: LocationProviding
 
-    init(recommendationService: RecommendationFetching) {
+    init(recommendationService: RecommendationFetching, locationProvider: LocationProviding) {
         self.recommendationService = recommendationService
+        self.locationProvider = locationProvider
     }
 
-    func selectCategory(_ option: CategoryOption) {
+    func onAppear() {
+        // VM owns the “start location request” responsibility now.
+        locationProvider.requestLocation()
+    }
+
+    func didSelectCategory(_ option: CategoryOption) async {
         selectedCategory = option
-    }
-
-    func clearResults() {
+        errorMessage = nil
         places = []
-        errorMessage = nil
-    }
 
-    func loadRecommendations(for option: CategoryOption, coordinate: CLLocationCoordinate2D) async {
-        errorMessage = nil
         isLoading = true
         defer { isLoading = false }
+
+        // Try to get location quickly; if not, request + wait briefly.
+        var coord = locationProvider.currentCoordinate()
+        if coord == nil {
+            locationProvider.requestLocation()
+            coord = await locationProvider.waitForCoordinate(timeoutSeconds: 2.0)
+        }
+
+        guard let coordinate = coord else {
+            errorMessage = "Couldn’t get your location yet. Please try again in a moment."
+            return
+        }
 
         do {
             let results = try await recommendationService.fetchRecommendations(

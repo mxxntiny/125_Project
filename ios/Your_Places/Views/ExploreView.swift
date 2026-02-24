@@ -13,7 +13,7 @@ import CoreLocation
 struct ExploreView: View {
 
     @EnvironmentObject private var profile: UserProfileStore
-    @EnvironmentObject private var locationManager: LocationManager
+    @EnvironmentObject private var locationManager: LocationManager // optional: for displaying raw coords
 
     @StateObject private var vm: ExploreViewModel
 
@@ -21,14 +21,20 @@ struct ExploreView: View {
         profile.selectedCategoryOptions
     }
 
-    init(recommendationService: RecommendationFetching) {
-        _vm = StateObject(wrappedValue: ExploreViewModel(recommendationService: recommendationService))
+    init(recommendationService: RecommendationFetching, locationProvider: LocationProviding) {
+        _vm = StateObject(
+            wrappedValue: ExploreViewModel(
+                recommendationService: recommendationService,
+                locationProvider: locationProvider
+            )
+        )
     }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 12) {
 
+                // Optional debug display (View still can read manager, but doesn’t orchestrate logic)
                 if let loc = locationManager.location {
                     Text("Lat: \(loc.coordinate.latitude), Lon: \(loc.coordinate.longitude)")
                         .font(.footnote)
@@ -56,15 +62,7 @@ struct ExploreView: View {
                     } else {
                         ForEach(userCategoryOptions) { option in
                             Button {
-                                vm.selectCategory(option)
-
-                                guard let loc = locationManager.location else { return }
-                                Task {
-                                    await vm.loadRecommendations(
-                                        for: option,
-                                        coordinate: loc.coordinate
-                                    )
-                                }
+                                Task { await vm.didSelectCategory(option) }
                             } label: {
                                 HStack {
                                     Text(option.title)
@@ -83,7 +81,7 @@ struct ExploreView: View {
                                 )
                             }
                             .buttonStyle(.plain)
-                            .disabled(vm.isLoading || locationManager.location == nil)
+                            .disabled(vm.isLoading)
                         }
                     }
                 }
@@ -123,15 +121,16 @@ struct ExploreView: View {
             }
             .padding()
             .navigationTitle("Your Places")
-            .onAppear {
-                locationManager.requestLocation()
-            }
+            .onAppear { vm.onAppear() }
         }
     }
 }
 
 #Preview {
-    ExploreView(recommendationService: RecommendationService(api: APIClient()))
-        .environmentObject(UserProfileStore())
-        .environmentObject(LocationManager())
+    ExploreView(
+        recommendationService: RecommendationService(api: APIClient()),
+        locationProvider: LocationService(manager: LocationManager())
+    )
+    .environmentObject(UserProfileStore())
+    .environmentObject(LocationManager())
 }

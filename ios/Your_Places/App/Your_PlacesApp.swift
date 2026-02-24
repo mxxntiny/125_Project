@@ -20,15 +20,20 @@ struct YourPlacesApp: App {
     @StateObject private var profile = UserProfileStore()
     @StateObject private var locationManager = LocationManager()
 
-    // Simple injection: build the service at app start
     private let recommendationService: RecommendationFetching =
         RecommendationService(api: APIClient())
 
     var body: some Scene {
         WindowGroup {
-            RootView(recommendationService: recommendationService)
-                .environmentObject(profile)
-                .environmentObject(locationManager)
+            // Create adapter using the shared manager instance
+            let locationProvider: LocationProviding = LocationService(manager: locationManager)
+
+            RootView(
+                recommendationService: recommendationService,
+                locationProvider: locationProvider
+            )
+            .environmentObject(profile)
+            .environmentObject(locationManager)
         }
     }
 }
