@@ -9,6 +9,8 @@ import SwiftUI
 
 struct ProfileView: View {
     @EnvironmentObject private var profile: UserProfileStore
+    @EnvironmentObject private var engagement: EngagementStore
+    
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
 
     var body: some View {
@@ -32,6 +34,7 @@ struct ProfileView: View {
                 Section {
                     Button(role: .destructive) {
                         profile.resetProfile()
+                        engagement.reset()
                         hasCompletedOnboarding = false // send user back to onboarding
                     } label: {
                         Text("Reset Profile")
@@ -46,4 +49,6 @@ struct ProfileView: View {
 #Preview {
     ProfileView()
         .environmentObject(UserProfileStore())
+        .environmentObject(EngagementStore())
+
 }

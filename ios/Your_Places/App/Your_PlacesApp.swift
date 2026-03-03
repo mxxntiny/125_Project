@@ -19,6 +19,7 @@ struct YourPlacesApp: App {
 
     @StateObject private var profile = UserProfileStore()
     @StateObject private var locationManager = LocationManager()
+    @StateObject private var engagement = EngagementStore()
 
     private let recommendationService: RecommendationFetching =
         RecommendationService(api: APIClient())
@@ -34,6 +35,7 @@ struct YourPlacesApp: App {
             )
             .environmentObject(profile)
             .environmentObject(locationManager)
+            .environmentObject(engagement)
         }
     }
 }
