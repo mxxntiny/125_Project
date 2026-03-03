@@ -14,6 +14,8 @@ struct CategoryOption: Identifiable, Codable, Hashable {
     let title: String
     let geoapifyCategories: [String]
 }
+
+/// Single source of truth: ALL categories supported by the app.
 enum CategoryCatalog {
     static let all: [CategoryOption] = [
         CategoryOption(title: "Coffee", geoapifyCategories: [

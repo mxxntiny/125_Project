@@ -18,72 +18,9 @@ struct ExploreView: View {
     @StateObject private var vm: ExploreViewModel
     @State private var selectedPlace: Place? = nil
 
-    // Only one expanded at a time (dropdown feel)
-    @State private var expandedCategoryID: String? = nil
-
-    // MARK: - Data helpers
-
-    private var allCategories: [CategoryOption] {
-        CategoryCatalog.all
-    }
-
-    private var selectedSet: Set<CategoryOption> {
-        Set(profile.selectedCategoryOptions)
-    }
-
-    private var unselectedCategories: [CategoryOption] {
-        allCategories
-            .filter { !selectedSet.contains($0) }
-            .sorted { $0.title < $1.title }
-    }
-
-    private enum DayBucket {
-        case morning, afternoon, evening, night
-    }
-
-    private var dayBucket: DayBucket {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 6..<11: return .morning
-        case 11..<17: return .afternoon
-        case 17..<22: return .evening
-        default: return .night
-        }
-    }
-
-    // Titles you prefer per time bucket (edit these to match your catalog)
-    private var preferredTitlesForNow: [String] {
-        switch dayBucket {
-        case .morning:   return ["Coffee", "Food", "Study", "Fitness"]
-        case .afternoon: return ["Food", "Study", "Outdoors", "Shopping"]
-        case .evening:   return ["Food", "Dessert", "Entertainment", "Outdoors"]
-        case .night:     return ["Nightlife", "Dessert", "Entertainment"]
-        }
-    }
-
-    // Suggested = selected categories sorted by the fixed time preference (NO user-action metric)
-    private var suggestedNow: [CategoryOption] {
-        let prefs = preferredTitlesForNow
-        let selected = profile.selectedCategoryOptions
-
-        let sorted = selected.sorted { a, b in
-            let ia = prefs.firstIndex(of: a.title) ?? Int.max
-            let ib = prefs.firstIndex(of: b.title) ?? Int.max
-            if ia != ib { return ia < ib }
-            return a.title < b.title
-        }
-
-        return Array(sorted.prefix(3))
-    }
-
-    private var remainingSelected: [CategoryOption] {
-        let suggestedIDs = Set(suggestedNow.map { $0.id })
-        return profile.selectedCategoryOptions
-            .filter { !suggestedIDs.contains($0.id) }
-            .sorted { $0.title < $1.title }
-    }
-
-    // MARK: - Init
+    // One expanded at a time per section
+    @State private var expandedSelectedID: String? = nil
+    @State private var expandedUnselectedID: String? = nil
 
     init(recommendationService: RecommendationFetching, locationProvider: LocationProviding) {
         _vm = StateObject(
@@ -94,12 +31,33 @@ struct ExploreView: View {
         )
     }
 
-    // MARK: - View
+    // MARK: - Lists
+
+    private var selectedCategoriesPinned: [CategoryOption] {
+        // Pinned + stable ordering
+        profile.selectedCategoryOptions.sorted { $0.title < $1.title }
+    }
+
+    private var unselectedCategoriesRanked: [CategoryOption] {
+        let selectedSet = Set(profile.selectedCategoryOptions)
+        let unselected = CategoryCatalog.all.filter { !selectedSet.contains($0) }
+
+        // Rank ONLY unselected categories by past interactions
+        return unselected.sorted { a, b in
+            let ca = profile.totalInteractionCount(for: a.title)
+            let cb = profile.totalInteractionCount(for: b.title)
+            if ca != cb { return ca > cb }
+            return a.title < b.title
+        }
+    }
+
+    // MARK: - UI
 
     var body: some View {
         NavigationStack {
             List {
 
+                // Optional status
                 Section {
                     if let loc = locationManager.location {
                         Text("Lat: \(loc.coordinate.latitude), Lon: \(loc.coordinate.longitude)")
@@ -111,59 +69,38 @@ struct ExploreView: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    if let errorMessage = vm.errorMessage {
-                        Text(errorMessage)
+                    if let err = vm.errorMessage {
+                        Text(err)
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }
                 }
 
-                if !suggestedNow.isEmpty {
-                    Section(header: Text("Suggested for you right now")) {
-                        ForEach(suggestedNow) { option in
-                            categoryDropdown(option, subtitle: "Suggested")
-                        }
-                    }
-                }
-
-                Section(header: Text("Your selected categories")) {
-                    if profile.selectedCategoryOptions.isEmpty {
-                        Text("No categories selected yet.")
-                            .foregroundStyle(.secondary)
-                    } else if remainingSelected.isEmpty {
-                        Text("All of your selected categories are currently suggested above.")
+                // SELECTED (pinned + dropdown)
+                Section(header: Text("Your categories")) {
+                    if selectedCategoriesPinned.isEmpty {
+                        Text("No categories selected yet. Add some from Suggested below.")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(remainingSelected) { option in
-                            categoryDropdown(option, subtitle: nil)
+                        ForEach(selectedCategoriesPinned) { option in
+                            selectedDropdownRow(option)
                         }
                     }
                 }
 
-                Section(header: Text("More categories (not selected yet)")) {
-                    if unselectedCategories.isEmpty {
+                // UNSELECTED (suggested + ranked + dropdown + add)
+                Section(header: Text("Suggested")) {
+                    if unselectedCategoriesRanked.isEmpty {
                         Text("You’ve selected everything in the catalog 🎉")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(unselectedCategories) { option in
-                            Button {
-                                profile.addCategory(option)
-                                profile.recordCategoryInteraction(title: option.title)
-                            } label: {
-                                HStack {
-                                    Text(option.title)
-                                    Spacer()
-                                    Text("Add")
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .disabled(vm.isLoading)
+                        ForEach(unselectedCategoriesRanked) { option in
+                            unselectedDropdownRow(option)
                         }
                     }
                 }
             }
-            .navigationTitle("Your Places")
+            .navigationTitle("Explore")
             .onAppear { vm.onAppear() }
             .sheet(item: $selectedPlace) { place in
                 PlaceDetailsSheet(place: place)
@@ -171,43 +108,87 @@ struct ExploreView: View {
         }
     }
 
-    // MARK: - Dropdown row
+    // MARK: - Selected dropdown row (NO add button)
 
-    private func categoryDropdown(_ option: CategoryOption, subtitle: String?) -> some View {
+    private func selectedDropdownRow(_ option: CategoryOption) -> some View {
         let isExpanded = Binding<Bool>(
-            get: { expandedCategoryID == option.id },
+            get: { expandedSelectedID == option.id },
             set: { newValue in
                 if newValue {
-                    // expand this one, collapse others
-                    expandedCategoryID = option.id
-
-                    // track user interaction
-                    profile.recordCategoryInteraction(title: option.title)
-
-                    // fetch results for this category
-                    Task { await vm.didSelectCategory(option) }
+                    expandedSelectedID = option.id
+                    // optional: close unselected dropdown if you want only one open total
+                    // expandedUnselectedID = nil
+                    Task { await vm.ensurePlacesLoaded(for: option) }
                 } else {
-                    // collapse
-                    if expandedCategoryID == option.id {
-                        expandedCategoryID = nil
-                    }
+                    if expandedSelectedID == option.id { expandedSelectedID = nil }
                 }
             }
         )
 
         return DisclosureGroup(isExpanded: isExpanded) {
-            // Children (dropdown content)
-            if vm.isLoading && vm.selectedCategory?.id == option.id {
+            dropdownPlaces(for: option)
+        } label: {
+            Text(option.title)
+        }
+    }
+
+    // MARK: - Unselected dropdown row (with Add)
+
+    private func unselectedDropdownRow(_ option: CategoryOption) -> some View {
+        let isExpanded = Binding<Bool>(
+            get: { expandedUnselectedID == option.id },
+            set: { newValue in
+                if newValue {
+                    expandedUnselectedID = option.id
+                    // optional: close selected dropdown if you want only one open total
+                    // expandedSelectedID = nil
+                    Task { await vm.ensurePlacesLoaded(for: option) }
+                } else {
+                    if expandedUnselectedID == option.id { expandedUnselectedID = nil }
+                }
+            }
+        )
+
+        return DisclosureGroup(isExpanded: isExpanded) {
+            dropdownPlaces(for: option)
+        } label: {
+            HStack {
+                Text(option.title)
+                Spacer()
+
+                Button {
+                    profile.addCategory(option)
+                    // Collapse after adding (clean)
+                    if expandedUnselectedID == option.id { expandedUnselectedID = nil }
+                } label: {
+                    Text("Add")
+                        .font(.footnote)
+                }
+                .controlSize(.small)
+                .buttonStyle(.borderless) // prevents toggling DisclosureGroup when tapping Add
+            }
+        }
+    }
+
+    // MARK: - Shared dropdown content
+
+    private func dropdownPlaces(for option: CategoryOption) -> some View {
+        Group {
+            if vm.loadingCategoryID == option.id {
                 ProgressView("Loading...")
                     .padding(.vertical, 4)
-            } else if vm.selectedCategory?.id == option.id {
-                if vm.places.isEmpty {
+            } else {
+                let places = vm.placesByCategoryID[option.id] ?? []
+
+                if places.isEmpty {
                     Text("No places found.")
                         .foregroundStyle(.secondary)
                         .padding(.vertical, 4)
                 } else {
-                    ForEach(vm.places) { place in
+                    ForEach(places) { place in
                         Button {
+                            // Count engagement on PLACE tap (stable UX; doesn’t reshuffle on expand)
+                            profile.recordRecommendationEngagement(categoryTitle: option.title)
                             selectedPlace = place
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
@@ -222,21 +203,6 @@ struct ExploreView: View {
                             .padding(.vertical, 4)
                         }
                         .buttonStyle(.plain)
-                    }
-                }
-            } else {
-                // expanded, but model hasn't switched yet (rare race)
-                ProgressView()
-                    .padding(.vertical, 4)
-            }
-        } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(option.title)
-                    if let subtitle = subtitle {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
                 }
             }

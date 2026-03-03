@@ -4,11 +4,6 @@
 //
 //  Created by Aidan Huerta on 2/9/26.
 //
-
-//
-//  UserProfileStore.swift
-//  Your_Places
-//
 //  Stores user onboarding info (name + selected categories)
 //  and persists it locally using UserDefaults.
 //
@@ -18,7 +13,6 @@ import Combine
 
 final class UserProfileStore: ObservableObject {
 
-    // MARK: - Keys
     private enum Keys {
         static let userName = "userName"
         static let selectedCategoryOptionsJSON = "selectedCategoryOptionsJSON"
@@ -28,7 +22,6 @@ final class UserProfileStore: ObservableObject {
         static let hourlyCountsJSON = "hourlyCategoryCountsJSON"
     }
 
-    // MARK: - Published state
     @Published var userName: String {
         didSet { UserDefaults.standard.set(userName, forKey: Keys.userName) }
     }
@@ -37,12 +30,10 @@ final class UserProfileStore: ObservableObject {
         didSet { saveSelectedCategories() }
     }
 
-    // IMPORTANT: give a default so init is valid (fixes “self used before…” error)
     @Published var hourlyCategoryCounts: [Int: [String: Int]] = [:] {
         didSet { saveHourlyCounts() }
     }
 
-    // MARK: - Init
     init(userDefaults: UserDefaults = .standard) {
         let storedName = userDefaults.string(forKey: Keys.userName) ?? ""
         self.userName = storedName
@@ -55,11 +46,9 @@ final class UserProfileStore: ObservableObject {
             self.selectedCategoryOptions = []
         }
 
-        // load personalization history
         self.hourlyCategoryCounts = Self.loadHourlyCounts(userDefaults: userDefaults)
     }
 
-    // MARK: - Derived helpers
     var selectedCategoryTitles: [String] {
         selectedCategoryOptions.map { $0.title }
     }
@@ -69,7 +58,6 @@ final class UserProfileStore: ObservableObject {
         && !selectedCategoryOptions.isEmpty
     }
 
-    // MARK: - Persistence
     private func saveSelectedCategories() {
         let data = (try? JSONEncoder().encode(selectedCategoryOptions)) ?? Data()
         let json = String(data: data, encoding: .utf8) ?? ""
@@ -91,7 +79,6 @@ final class UserProfileStore: ObservableObject {
         UserDefaults.standard.set(json, forKey: ExtraKeys.hourlyCountsJSON)
     }
 
-    // MARK: - Reset
     func resetProfile() {
         userName = ""
         selectedCategoryOptions = []
@@ -102,15 +89,23 @@ final class UserProfileStore: ObservableObject {
         UserDefaults.standard.removeObject(forKey: ExtraKeys.hourlyCountsJSON)
     }
 
-    // MARK: - Personalization
-    func recordCategoryInteraction(title: String, date: Date = Date()) {
-        let hour = Calendar.current.component(.hour, from: date) // 0..23
+    // MARK: - Ranking (unselected categories)
+    /// Total interactions across all hours for a category title.
+    func totalInteractionCount(for title: String) -> Int {
+        hourlyCategoryCounts.values.reduce(0) { partial, bucket in
+            partial + (bucket[title] ?? 0)
+        }
+    }
+
+    // MARK: - Engagement tracking (use this on place taps, not on expand)
+    func recordRecommendationEngagement(categoryTitle: String, date: Date = Date()) {
+        let hour = Calendar.current.component(.hour, from: date)
         var bucket = hourlyCategoryCounts[hour, default: [:]]
-        bucket[title, default: 0] += 1
+        bucket[categoryTitle, default: 0] += 1
         hourlyCategoryCounts[hour] = bucket
     }
 
-    // MARK: - Category management (for Explore screen)
+    // MARK: - Category management
     func addCategory(_ option: CategoryOption) {
         guard !selectedCategoryOptions.contains(option) else { return }
         selectedCategoryOptions.append(option)

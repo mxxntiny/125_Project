@@ -16,10 +16,12 @@ import Combine
 
 @MainActor
 final class ExploreViewModel: ObservableObject {
-    @Published private(set) var places: [Place] = []
-    @Published private(set) var isLoading: Bool = false
+
+    // Per-category results (keyed by CategoryOption.id)
+    @Published private(set) var placesByCategoryID: [String: [Place]] = [:]
+
+    @Published private(set) var loadingCategoryID: String? = nil
     @Published var errorMessage: String? = nil
-    @Published var selectedCategory: CategoryOption? = nil
 
     private let recommendationService: RecommendationFetching
     private let locationProvider: LocationProviding
@@ -30,19 +32,20 @@ final class ExploreViewModel: ObservableObject {
     }
 
     func onAppear() {
-        // VM owns the “start location request” responsibility now.
         locationProvider.requestLocation()
     }
 
-    func didSelectCategory(_ option: CategoryOption) async {
-        selectedCategory = option
+    /// Fetch places for a category if we don't already have them cached.
+    func ensurePlacesLoaded(for option: CategoryOption) async {
+        // If cached already, don’t refetch
+        if placesByCategoryID[option.id] != nil {
+            return
+        }
+
         errorMessage = nil
-        places = []
+        loadingCategoryID = option.id
+        defer { loadingCategoryID = nil }
 
-        isLoading = true
-        defer { isLoading = false }
-
-        // Try to get location quickly; if not, request + wait briefly.
         var coord = locationProvider.currentCoordinate()
         if coord == nil {
             locationProvider.requestLocation()
@@ -60,9 +63,13 @@ final class ExploreViewModel: ObservableObject {
                 lon: coordinate.longitude,
                 categories: option.geoapifyCategories
             )
-            places = results
+            placesByCategoryID[option.id] = results
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func clearCache(for option: CategoryOption) {
+        placesByCategoryID[option.id] = nil
     }
 }
