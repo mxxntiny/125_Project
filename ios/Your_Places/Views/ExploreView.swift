@@ -16,12 +16,74 @@ struct ExploreView: View {
     @EnvironmentObject private var locationManager: LocationManager
 
     @StateObject private var vm: ExploreViewModel
-
     @State private var selectedPlace: Place? = nil
 
-    private var userCategoryOptions: [CategoryOption] {
-        profile.selectedCategoryOptions
+    // Only one expanded at a time (dropdown feel)
+    @State private var expandedCategoryID: String? = nil
+
+    // MARK: - Data helpers
+
+    private var allCategories: [CategoryOption] {
+        CategoryCatalog.all
     }
+
+    private var selectedSet: Set<CategoryOption> {
+        Set(profile.selectedCategoryOptions)
+    }
+
+    private var unselectedCategories: [CategoryOption] {
+        allCategories
+            .filter { !selectedSet.contains($0) }
+            .sorted { $0.title < $1.title }
+    }
+
+    private enum DayBucket {
+        case morning, afternoon, evening, night
+    }
+
+    private var dayBucket: DayBucket {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 6..<11: return .morning
+        case 11..<17: return .afternoon
+        case 17..<22: return .evening
+        default: return .night
+        }
+    }
+
+    // Titles you prefer per time bucket (edit these to match your catalog)
+    private var preferredTitlesForNow: [String] {
+        switch dayBucket {
+        case .morning:   return ["Coffee", "Food", "Study", "Fitness"]
+        case .afternoon: return ["Food", "Study", "Outdoors", "Shopping"]
+        case .evening:   return ["Food", "Dessert", "Entertainment", "Outdoors"]
+        case .night:     return ["Nightlife", "Dessert", "Entertainment"]
+        }
+    }
+
+    // Suggested = selected categories sorted by the fixed time preference (NO user-action metric)
+    private var suggestedNow: [CategoryOption] {
+        let prefs = preferredTitlesForNow
+        let selected = profile.selectedCategoryOptions
+
+        let sorted = selected.sorted { a, b in
+            let ia = prefs.firstIndex(of: a.title) ?? Int.max
+            let ib = prefs.firstIndex(of: b.title) ?? Int.max
+            if ia != ib { return ia < ib }
+            return a.title < b.title
+        }
+
+        return Array(sorted.prefix(3))
+    }
+
+    private var remainingSelected: [CategoryOption] {
+        let suggestedIDs = Set(suggestedNow.map { $0.id })
+        return profile.selectedCategoryOptions
+            .filter { !suggestedIDs.contains($0.id) }
+            .sorted { $0.title < $1.title }
+    }
+
+    // MARK: - Init
 
     init(recommendationService: RecommendationFetching, locationProvider: LocationProviding) {
         _vm = StateObject(
@@ -32,111 +94,75 @@ struct ExploreView: View {
         )
     }
 
+    // MARK: - View
+
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
+            List {
 
-                if let loc = locationManager.location {
-                    Text("Lat: \(loc.coordinate.latitude), Lon: \(loc.coordinate.longitude)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("Getting your location...")
-                        .foregroundStyle(.secondary)
+                Section {
+                    if let loc = locationManager.location {
+                        Text("Lat: \(loc.coordinate.latitude), Lon: \(loc.coordinate.longitude)")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Getting your location...")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if let errorMessage = vm.errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
                 }
 
-                if let errorMessage = vm.errorMessage {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
-                        .font(.footnote)
+                if !suggestedNow.isEmpty {
+                    Section(header: Text("Suggested for you right now")) {
+                        ForEach(suggestedNow) { option in
+                            categoryDropdown(option, subtitle: "Suggested")
+                        }
+                    }
                 }
 
-                Text("Your Selected Categories")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                VStack(spacing: 8) {
-                    if userCategoryOptions.isEmpty {
+                Section(header: Text("Your selected categories")) {
+                    if profile.selectedCategoryOptions.isEmpty {
                         Text("No categories selected yet.")
                             .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else if remainingSelected.isEmpty {
+                        Text("All of your selected categories are currently suggested above.")
+                            .foregroundStyle(.secondary)
                     } else {
-                        ForEach(userCategoryOptions) { option in
+                        ForEach(remainingSelected) { option in
+                            categoryDropdown(option, subtitle: nil)
+                        }
+                    }
+                }
+
+                Section(header: Text("More categories (not selected yet)")) {
+                    if unselectedCategories.isEmpty {
+                        Text("You’ve selected everything in the catalog 🎉")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(unselectedCategories) { option in
                             Button {
-                                Task { await vm.didSelectCategory(option) }
+                                profile.addCategory(option)
+                                profile.recordCategoryInteraction(title: option.title)
                             } label: {
                                 HStack {
                                     Text(option.title)
                                     Spacer()
-                                    Image(systemName: "chevron.right")
+                                    Text("Add")
+                                        .font(.footnote)
                                         .foregroundStyle(.secondary)
                                 }
-                                .padding()
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(
-                                            vm.selectedCategory?.id == option.id
-                                            ? Color.blue.opacity(0.15)
-                                            : Color.secondary.opacity(0.1)
-                                        )
-                                )
                             }
-                            .buttonStyle(.plain)
                             .disabled(vm.isLoading)
                         }
                     }
                 }
-
-                if let selectedCategory = vm.selectedCategory {
-                    Text("Showing results for: \(selectedCategory.title)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                if vm.isLoading {
-                    ProgressView("Loading recommendations...")
-                        .padding(.vertical)
-                }
-
-                List(vm.places) { place in
-                    Button {
-                        selectedPlace = place
-                    } label: {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(place.name ?? "Unnamed place")
-                                .font(.headline)
-
-                            Text(place.address ?? "No address available")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-
-                            // Explanation signals row
-                            VStack(alignment: .leading, spacing: 2) {
-                                if let d = place.distance_m {
-                                    Text("Distance: \(Int(d)) m")
-                                }
-
-                                if let t = place.travel_time_s {
-                                    let mins = max(1, t / 60)
-                                    Text("ETA: \(mins) min")
-                                }
-
-                                if let delay = place.traffic_delay_s, delay > 0 {
-                                    let mins = max(1, delay / 60)
-                                    Text("Traffic delay: +\(mins) min")
-                                }
-
-                                Text("Score: \(String(format: "%.2f", place.score))")
-                            }
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
             }
-            .padding()
             .navigationTitle("Your Places")
             .onAppear { vm.onAppear() }
             .sheet(item: $selectedPlace) { place in
@@ -144,13 +170,76 @@ struct ExploreView: View {
             }
         }
     }
-}
 
-#Preview {
-    ExploreView(
-        recommendationService: RecommendationService(api: APIClient()),
-        locationProvider: LocationService(manager: LocationManager())
-    )
-    .environmentObject(UserProfileStore())
-    .environmentObject(LocationManager())
+    // MARK: - Dropdown row
+
+    private func categoryDropdown(_ option: CategoryOption, subtitle: String?) -> some View {
+        let isExpanded = Binding<Bool>(
+            get: { expandedCategoryID == option.id },
+            set: { newValue in
+                if newValue {
+                    // expand this one, collapse others
+                    expandedCategoryID = option.id
+
+                    // track user interaction
+                    profile.recordCategoryInteraction(title: option.title)
+
+                    // fetch results for this category
+                    Task { await vm.didSelectCategory(option) }
+                } else {
+                    // collapse
+                    if expandedCategoryID == option.id {
+                        expandedCategoryID = nil
+                    }
+                }
+            }
+        )
+
+        return DisclosureGroup(isExpanded: isExpanded) {
+            // Children (dropdown content)
+            if vm.isLoading && vm.selectedCategory?.id == option.id {
+                ProgressView("Loading...")
+                    .padding(.vertical, 4)
+            } else if vm.selectedCategory?.id == option.id {
+                if vm.places.isEmpty {
+                    Text("No places found.")
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 4)
+                } else {
+                    ForEach(vm.places) { place in
+                        Button {
+                            selectedPlace = place
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(place.name ?? "Unnamed place")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+
+                                Text(place.address ?? "No address available")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            } else {
+                // expanded, but model hasn't switched yet (rare race)
+                ProgressView()
+                    .padding(.vertical, 4)
+            }
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(option.title)
+                    if let subtitle = subtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
 }
