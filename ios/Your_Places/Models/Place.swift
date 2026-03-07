@@ -60,6 +60,9 @@ struct Place: Decodable, Identifiable {
     // Distance from the user in meters (optional)
     let distance_m: Double?
     
+    // rating
+    let rating: Double?
+    
     // Overall recommendation score calculated by the backend
     let score: Double
     

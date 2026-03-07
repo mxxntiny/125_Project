@@ -17,12 +17,16 @@ struct PlaceRow: View {
             return "Because you often explore \(categoryTitle)"
         }
 
-        if let delay = place.traffic_delay_s, delay <= 120 {
-            return "Low traffic right now"
+        if let distance = place.distance_m, distance <= 400 {
+            return "Close to you"
         }
 
-        if let distance = place.distance_m, distance <= 500 {
-            return "Close to you"
+        if let rating = place.rating, rating >= 4.4 {
+            return "Highly rated nearby"
+        }
+
+        if let delay = place.traffic_delay_s, delay <= 60 {
+            return "Low traffic right now"
         }
 
         return nil

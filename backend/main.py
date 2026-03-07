@@ -58,6 +58,9 @@ class PlaceOut(BaseModel):
     lon: float
     distance_m: Optional[float] = None
 
+    # Geoapify rating to iOS
+    rating: Optional[float] = None
+
     # traffic signals
     route_length_m: Optional[int] = None
     travel_time_s: Optional[int] = None
@@ -244,6 +247,7 @@ def recommendations(req: RecommendRequest):
                 lat=lat,
                 lon=lon,
                 distance_m=props.get("distance"),
+                rating=props.get("rating"),
                 route_length_m=(tinfo or {}).get("route_length_m"),
                 travel_time_s=(tinfo or {}).get("travel_time_s"),
                 traffic_delay_s=(tinfo or {}).get("traffic_delay_s"),
