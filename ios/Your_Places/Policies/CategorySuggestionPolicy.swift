@@ -12,9 +12,27 @@ import Foundation
 /// Keeps ranking rules out of SwiftUI views.
 enum CategorySuggestionPolicy {
 
-    /// Selected categories pinned at top (stable).
-    static func selectedPinned(from selected: [CategoryOption]) -> [CategoryOption] {
-        selected.sorted { $0.title < $1.title }
+    /// Selected categories stay in the top section, but their order is dynamic.
+    /// Ranking priority:
+    /// 1. current-hour affinity (descending)
+    /// 2. total engagement count (descending)
+    /// 3. title (alphabetical tie-break)
+    static func selectedRanked(
+        from selected: [CategoryOption],
+        affinityNow: (String) -> Double,
+        engagementCount: (String) -> Int
+    ) -> [CategoryOption] {
+        selected.sorted { a, b in
+            let affinityA = affinityNow(a.title)
+            let affinityB = affinityNow(b.title)
+            if affinityA != affinityB { return affinityA > affinityB }
+
+            let countA = engagementCount(a.title)
+            let countB = engagementCount(b.title)
+            if countA != countB { return countA > countB }
+
+            return a.title < b.title
+        }
     }
 
     /// Suggested categories are the categories NOT selected by the user.
@@ -25,7 +43,6 @@ enum CategorySuggestionPolicy {
         engagementCount: (String) -> Int
     ) -> [CategoryOption] {
         let selectedSet = Set(selected)
-
         let unselected = allCategories.filter { !selectedSet.contains($0) }
 
         return unselected.sorted { a, b in

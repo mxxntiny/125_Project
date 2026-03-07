@@ -34,8 +34,16 @@ struct ExploreView: View {
 
     // MARK: - Lists
 
-    private var selectedCategoriesPinned: [CategoryOption] {
-        CategorySuggestionPolicy.selectedPinned(from: profile.selectedCategoryOptions)
+    private var selectedCategoriesRanked: [CategoryOption] {
+        CategorySuggestionPolicy.selectedRanked(
+            from: profile.selectedCategoryOptions,
+            affinityNow: { title in
+                engagement.affinityNow(for: title)
+            },
+            engagementCount: { title in
+                engagement.totalInteractionCount(for: title)
+            }
+        )
     }
 
     private var unselectedCategoriesRanked: [CategoryOption] {
@@ -71,11 +79,11 @@ struct ExploreView: View {
                 }
 
                 Section(header: Text("Your categories")) {
-                    if selectedCategoriesPinned.isEmpty {
+                    if selectedCategoriesRanked.isEmpty {
                         Text("No categories selected yet. Add some from Suggested below.")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(selectedCategoriesPinned) { option in
+                        ForEach(selectedCategoriesRanked) { option in
                             CategoryDropdownRow(
                                 title: option.title,
                                 isExpanded: bindingForSelected(option),
