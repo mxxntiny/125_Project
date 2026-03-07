@@ -41,6 +41,19 @@ struct ProfileView: View {
         )
     }
 
+    private var currentHour: Int {
+        Calendar.current.component(.hour, from: Date())
+    }
+
+    private var sortedHoursForDisplay: [Int] {
+        let hours = engagement.hourlyCategoryCounts.keys.sorted()
+        return hours.sorted { a, b in
+            if a == currentHour { return true }
+            if b == currentHour { return false }
+            return a < b
+        }
+    }
+
     private func rankingReason(for option: CategoryOption) -> String {
         let affinity = engagement.affinityNow(for: option.title)
         let total = engagement.totalInteractionCount(for: option.title)
@@ -115,7 +128,7 @@ struct ProfileView: View {
                         Text("No engagement data stored.")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(engagement.hourlyCategoryCounts.keys.sorted(), id: \.self) { hour in
+                        ForEach(sortedHoursForDisplay, id: \.self) { hour in
                             let bucket = engagement.hourlyCategoryCounts[hour] ?? [:]
                             let summary = bucket
                                 .sorted { lhs, rhs in
@@ -127,8 +140,18 @@ struct ProfileView: View {
                                 .map { "\($0.key): \($0.value)" }
                                 .joined(separator: ", ")
 
-                            Text("\(hour):00 — \(summary)")
-                                .font(.footnote)
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack {
+                                    Text("\(hour):00 — \(summary)")
+                                        .font(.footnote)
+
+                                    if hour == currentHour {
+                                        Text("Current hour")
+                                            .font(.caption2)
+                                            .foregroundStyle(.blue)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
