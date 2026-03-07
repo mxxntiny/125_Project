@@ -41,6 +41,25 @@ struct ProfileView: View {
         )
     }
 
+    private func rankingReason(for option: CategoryOption) -> String {
+        let affinity = engagement.affinityNow(for: option.title)
+        let total = engagement.totalInteractionCount(for: option.title)
+
+        if affinity >= 0.75 {
+            return "Frequently used this time of day"
+        } else if affinity >= 0.45 {
+            return "Strong recent engagement"
+        } else if total >= 5 {
+            return "Boosted by past interactions"
+        } else {
+            return "Lower current priority"
+        }
+    }
+
+    private func affinityPercent(for option: CategoryOption) -> Int {
+        Int((engagement.affinityNow(for: option.title) * 100).rounded())
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -53,18 +72,24 @@ struct ProfileView: View {
                         Text("No categories selected.")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(rankedSelectedCategories) { option in
-                            HStack {
-                                Text(option.title)
-                                Spacer()
+                        ForEach(Array(rankedSelectedCategories.enumerated()), id: \.element.id) { index, option in
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text("\(index + 1). \(option.title)")
+                                        .font(.body)
 
-                                let affinity = engagement.affinityNow(for: option.title)
-                                if affinity >= 0.6 {
-                                    Text("High affinity")
+                                    Spacer()
+
+                                    Text("Affinity \(affinityPercent(for: option))%")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
+
+                                Text(rankingReason(for: option))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
+                            .padding(.vertical, 2)
                         }
                     }
                 }
