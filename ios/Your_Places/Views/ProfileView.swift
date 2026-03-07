@@ -52,7 +52,6 @@ struct ProfileView: View {
                         profile.userName = "Student Demo"
                         profile.setSelectedCategories(studentCategories)
                         engagement.seedStudentScenario()
-
                         NotificationCenter.default.post(name: .demoPersonaDidChange, object: nil)
                     }
 
@@ -60,18 +59,7 @@ struct ProfileView: View {
                         profile.userName = "Active Social Demo"
                         profile.setSelectedCategories(activeSocialCategories)
                         engagement.seedActiveSocialScenario()
-
                         NotificationCenter.default.post(name: .demoPersonaDidChange, object: nil)
-                    }
-
-                    Button(role: .destructive) {
-                        profile.resetProfile()
-                        engagement.reset()
-                        hasCompletedOnboarding = false
-
-                        NotificationCenter.default.post(name: .demoPersonaDidChange, object: nil)
-                    } label: {
-                        Text("Reset App State")
                     }
                 }
 
@@ -103,10 +91,9 @@ struct ProfileView: View {
                         profile.resetProfile()
                         engagement.reset()
                         hasCompletedOnboarding = false
-
                         NotificationCenter.default.post(name: .demoPersonaDidChange, object: nil)
                     } label: {
-                        Text("Reset Profile")
+                        Text("Reset Demo State")
                     }
                 }
             }
