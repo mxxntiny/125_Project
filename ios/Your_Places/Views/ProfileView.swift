@@ -29,6 +29,18 @@ struct ProfileView: View {
         }
     }
 
+    private var rankedSelectedCategories: [CategoryOption] {
+        CategorySuggestionPolicy.selectedRanked(
+            from: profile.selectedCategoryOptions,
+            affinityNow: { title in
+                engagement.affinityNow(for: title)
+            },
+            engagementCount: { title in
+                engagement.totalInteractionCount(for: title)
+            }
+        )
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -37,12 +49,22 @@ struct ProfileView: View {
                 }
 
                 Section("Selected Categories") {
-                    if profile.selectedCategoryOptions.isEmpty {
+                    if rankedSelectedCategories.isEmpty {
                         Text("No categories selected.")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(profile.selectedCategoryOptions) { option in
-                            Text(option.title)
+                        ForEach(rankedSelectedCategories) { option in
+                            HStack {
+                                Text(option.title)
+                                Spacer()
+
+                                let affinity = engagement.affinityNow(for: option.title)
+                                if affinity >= 0.6 {
+                                    Text("High affinity")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
                         }
                     }
                 }
