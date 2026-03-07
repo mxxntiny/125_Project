@@ -9,8 +9,6 @@
 import Foundation
 import Combine
 
-/// Stores and persists behavior/engagement signals used for personalization.
-/// Separated from UserProfileStore to keep responsibilities clean.
 final class EngagementStore: ObservableObject {
 
     private enum Keys {
@@ -52,22 +50,16 @@ final class EngagementStore: ObservableObject {
 
     // MARK: - Scoring helpers
 
-    /// Total interactions across all hours for a category title.
     func totalInteractionCount(for title: String) -> Int {
         hourlyCategoryCounts.values.reduce(0) { partial, bucket in
             partial + (bucket[title] ?? 0)
         }
     }
 
-    /// Hour-specific interactions (0..23).
     func interactionCount(for title: String, hour: Int) -> Int {
         hourlyCategoryCounts[hour]?[title] ?? 0
     }
 
-    /// Returns a normalized 0...1 affinity score for the current hour.
-    /// Example:
-    /// If Coffee = 8 and Food = 4 in the current hour bucket,
-    /// Coffee affinity = 1.0 and Food affinity = 0.5.
     func affinityNow(for title: String, date: Date = Date()) -> Double {
         let hour = Calendar.current.component(.hour, from: date)
 
@@ -82,7 +74,6 @@ final class EngagementStore: ObservableObject {
         return Double(count) / Double(maxCount)
     }
 
-    /// Record meaningful engagement (place tap / save / navigate), not just expanding a dropdown.
     func recordEngagement(categoryTitle: String, date: Date = Date()) {
         let hour = Calendar.current.component(.hour, from: date)
         var bucket = hourlyCategoryCounts[hour, default: [:]]
@@ -90,13 +81,58 @@ final class EngagementStore: ObservableObject {
         hourlyCategoryCounts[hour] = bucket
     }
 
-    /// Optional demo helper so personalization is visible during presentations.
-    func seedDemoData() {
+    // MARK: - Demo personas
+
+    /// Persona 1: The Student
+    /// Interests: Study, Coffee, Food, Shopping
+    func seedStudentScenario() {
         hourlyCategoryCounts = [
-            8: ["Coffee": 8, "Food": 2],
-            12: ["Food": 7, "Coffee": 3, "Parks": 2],
-            18: ["Nightlife": 6, "Food": 4],
-            21: ["Nightlife": 9]
+            8: [
+                "Coffee": 8,
+                "Study": 7,
+                "Food": 3
+            ],
+            10: [
+                "Study": 9,
+                "Coffee": 5,
+                "Shopping": 2
+            ],
+            12: [
+                "Food": 8,
+                "Coffee": 4,
+                "Study": 3
+            ],
+            15: [
+                "Study": 6,
+                "Coffee": 3,
+                "Shopping": 4
+            ]
+        ]
+    }
+
+    /// Persona 2: The Active yet Social Person
+    /// Interests: Fitness, Outdoors, Nightlife, Entertainment, Coffee
+    func seedActiveSocialScenario() {
+        hourlyCategoryCounts = [
+            7: [
+                "Fitness": 9,
+                "Coffee": 4
+            ],
+            11: [
+                "Outdoors": 8,
+                "Coffee": 3,
+                "Entertainment": 2
+            ],
+            18: [
+                "Entertainment": 5,
+                "Food": 3,
+                "Nightlife": 4
+            ],
+            21: [
+                "Nightlife": 10,
+                "Entertainment": 6,
+                "Coffee": 2
+            ]
         ]
     }
 }

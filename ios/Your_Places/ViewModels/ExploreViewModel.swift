@@ -17,9 +17,7 @@ import Combine
 @MainActor
 final class ExploreViewModel: ObservableObject {
 
-    // Per-category results (keyed by CategoryOption.id)
     @Published private(set) var placesByCategoryID: [String: [Place]] = [:]
-
     @Published private(set) var loadingCategoryID: String? = nil
     @Published var errorMessage: String? = nil
 
@@ -35,7 +33,6 @@ final class ExploreViewModel: ObservableObject {
         locationProvider.requestLocation()
     }
 
-    /// Fetch places for a category if we don't already have them cached.
     func ensurePlacesLoaded(for option: CategoryOption, personalAffinity: Double) async {
         if placesByCategoryID[option.id] != nil {
             return
@@ -71,5 +68,9 @@ final class ExploreViewModel: ObservableObject {
 
     func clearCache(for option: CategoryOption) {
         placesByCategoryID[option.id] = nil
+    }
+
+    func clearAllCaches() {
+        placesByCategoryID = [:]
     }
 }

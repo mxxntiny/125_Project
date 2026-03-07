@@ -38,7 +38,11 @@ struct OnboardingFlowView: View {
                         ),
                         onBack: { step = 1 },
                         onFinish: {
-                            if profile.isValid {
+                            let isValidProfile =
+                            !profile.userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+                            !profile.selectedCategoryOptions.isEmpty
+                            
+                            if isValidProfile {
                                 hasCompletedOnboarding = true
                             }
                         }

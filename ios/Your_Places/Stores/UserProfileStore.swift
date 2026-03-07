@@ -18,35 +18,41 @@ final class UserProfileStore: ObservableObject {
         static let selectedCategoryOptionsJSON = "selectedCategoryOptionsJSON"
     }
 
-    @Published var userName: String {
-        didSet { UserDefaults.standard.set(userName, forKey: Keys.userName) }
-    }
-
-    @Published var selectedCategoryOptions: [CategoryOption] {
-        didSet { saveSelectedCategories() }
-    }
-
-
-    init(userDefaults: UserDefaults = .standard) {
-        let storedName = userDefaults.string(forKey: Keys.userName) ?? ""
-        self.userName = storedName
-
-        if let json = userDefaults.string(forKey: Keys.selectedCategoryOptionsJSON),
-           let data = json.data(using: .utf8),
-           let decoded = try? JSONDecoder().decode([CategoryOption].self, from: data) {
-            self.selectedCategoryOptions = decoded
-        } else {
-            self.selectedCategoryOptions = []
+    @Published var userName: String = "" {
+        didSet {
+            UserDefaults.standard.set(userName, forKey: Keys.userName)
         }
     }
 
-    var selectedCategoryTitles: [String] {
-        selectedCategoryOptions.map { $0.title }
+    @Published var selectedCategoryOptions: [CategoryOption] = [] {
+        didSet {
+            saveSelectedCategories()
+        }
     }
 
+    init(userDefaults: UserDefaults = .standard) {
+        self.userName = userDefaults.string(forKey: Keys.userName) ?? ""
+        self.selectedCategoryOptions = Self.loadSelectedCategories(userDefaults: userDefaults)
+    }
+
+    // MARK: - Validation
+
     var isValid: Bool {
-        !userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        && !selectedCategoryOptions.isEmpty
+        !userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !selectedCategoryOptions.isEmpty
+    }
+
+    // MARK: - Persistence
+
+    private static func loadSelectedCategories(userDefaults: UserDefaults) -> [CategoryOption] {
+        guard
+            let json = userDefaults.string(forKey: Keys.selectedCategoryOptionsJSON),
+            let data = json.data(using: .utf8),
+            let decoded = try? JSONDecoder().decode([CategoryOption].self, from: data)
+        else {
+            return []
+        }
+        return decoded
     }
 
     private func saveSelectedCategories() {
@@ -55,21 +61,27 @@ final class UserProfileStore: ObservableObject {
         UserDefaults.standard.set(json, forKey: Keys.selectedCategoryOptionsJSON)
     }
 
-    func resetProfile() {
-        userName = ""
-        selectedCategoryOptions = []
-
-        UserDefaults.standard.removeObject(forKey: Keys.userName)
-        UserDefaults.standard.removeObject(forKey: Keys.selectedCategoryOptionsJSON)
-    }
-
     // MARK: - Category management
+
     func addCategory(_ option: CategoryOption) {
         guard !selectedCategoryOptions.contains(option) else { return }
         selectedCategoryOptions.append(option)
     }
 
     func removeCategory(_ option: CategoryOption) {
-        selectedCategoryOptions.removeAll { $0.id == option.id }
+        selectedCategoryOptions.removeAll { $0 == option }
+    }
+
+    func setSelectedCategories(_ options: [CategoryOption]) {
+        selectedCategoryOptions = options
+    }
+
+    // MARK: - Reset
+
+    func resetProfile() {
+        userName = ""
+        selectedCategoryOptions = []
+        UserDefaults.standard.removeObject(forKey: Keys.userName)
+        UserDefaults.standard.removeObject(forKey: Keys.selectedCategoryOptionsJSON)
     }
 }

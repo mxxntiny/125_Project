@@ -48,8 +48,6 @@ struct ExploreView: View {
         )
     }
 
-    // MARK: - UI
-
     var body: some View {
         NavigationStack {
             List {
@@ -109,7 +107,9 @@ struct ExploreView: View {
                                 trailingActionTitle: "Add",
                                 onTrailingAction: {
                                     profile.addCategory(option)
-                                    if expandedUnselectedID == option.id { expandedUnselectedID = nil }
+                                    if expandedUnselectedID == option.id {
+                                        expandedUnselectedID = nil
+                                    }
                                 },
                                 onExpanded: {
                                     let affinity = engagement.affinityNow(for: option.title)
@@ -129,6 +129,12 @@ struct ExploreView: View {
             }
             .navigationTitle("Explore")
             .onAppear { vm.onAppear() }
+            .onReceive(NotificationCenter.default.publisher(for: .demoPersonaDidChange)) { _ in
+                vm.clearAllCaches()
+                expandedSelectedID = nil
+                expandedUnselectedID = nil
+                selectedPlace = nil
+            }
             .sheet(item: $selectedPlace) { place in
                 PlaceDetailsSheet(place: place)
             }
