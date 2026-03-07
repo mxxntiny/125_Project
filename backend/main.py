@@ -36,11 +36,15 @@ class RecommendRequest(BaseModel):
     # weights
     prefer_close: float = 0.6
     prefer_high_rating: float = 0.4
+    prefer_low_traffic: float = 0.0
+    prefer_personal: float = 0.0
+
+    # personalization
+    personal_affinity: float = Field(0.0, ge=0.0, le=1.0)
 
     # optional features
     include_traffic: bool = False
-    include_details: bool = False   # recommend keeping False; use /place-details instead
-    prefer_low_traffic: float = 0.0 # defaults off
+    include_details: bool = False
 
 
 class PlaceOut(BaseModel):
@@ -145,6 +149,7 @@ def simple_score(feature: Dict[str, Any], req: RecommendRequest, traffic: Option
     - closer is better
     - higher rating is better (when available)
     - lower travel time is better (optional traffic weighting)
+    - higher personal affinity is better
     """
     props = feature.get("properties", {})
     dist = props.get("distance")  # meters
@@ -162,21 +167,22 @@ def simple_score(feature: Dict[str, Any], req: RecommendRequest, traffic: Option
         rating_score = 0.5
 
     # traffic -> higher is better (shorter travel time)
-    # If include_traffic is enabled but this place has no traffic data, give a slight penalty
     if req.include_traffic and (traffic is None or traffic.get("travel_time_s") is None):
         traffic_score = 0.45
     else:
         traffic_score = 0.5
 
     if traffic is not None and traffic.get("travel_time_s") is not None:
-        # Normalize travel time relative to 20 minutes
         travel_norm = norm01(float(traffic["travel_time_s"]), 20.0 * 60.0)
         traffic_score = 1.0 - travel_norm
+
+    personal_score = req.personal_affinity
 
     return (
         req.prefer_close * close_score
         + req.prefer_high_rating * rating_score
         + req.prefer_low_traffic * traffic_score
+        + req.prefer_personal * personal_score
     )
 
 

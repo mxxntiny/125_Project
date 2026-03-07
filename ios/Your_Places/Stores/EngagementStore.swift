@@ -64,11 +64,39 @@ final class EngagementStore: ObservableObject {
         hourlyCategoryCounts[hour]?[title] ?? 0
     }
 
+    /// Returns a normalized 0...1 affinity score for the current hour.
+    /// Example:
+    /// If Coffee = 8 and Food = 4 in the current hour bucket,
+    /// Coffee affinity = 1.0 and Food affinity = 0.5.
+    func affinityNow(for title: String, date: Date = Date()) -> Double {
+        let hour = Calendar.current.component(.hour, from: date)
+
+        guard let bucket = hourlyCategoryCounts[hour], !bucket.isEmpty else {
+            return 0.0
+        }
+
+        let maxCount = bucket.values.max() ?? 0
+        guard maxCount > 0 else { return 0.0 }
+
+        let count = bucket[title] ?? 0
+        return Double(count) / Double(maxCount)
+    }
+
     /// Record meaningful engagement (place tap / save / navigate), not just expanding a dropdown.
     func recordEngagement(categoryTitle: String, date: Date = Date()) {
         let hour = Calendar.current.component(.hour, from: date)
         var bucket = hourlyCategoryCounts[hour, default: [:]]
         bucket[categoryTitle, default: 0] += 1
         hourlyCategoryCounts[hour] = bucket
+    }
+
+    /// Optional demo helper so personalization is visible during presentations.
+    func seedDemoData() {
+        hourlyCategoryCounts = [
+            8: ["Coffee": 8, "Food": 2],
+            12: ["Food": 7, "Coffee": 3, "Parks": 2],
+            18: ["Nightlife": 6, "Food": 4],
+            21: ["Nightlife": 9]
+        ]
     }
 }

@@ -15,7 +15,6 @@
 */
 
 import Foundation
-// Foundation gives us tools for URLs, HTTP requests, and JSON handling
 
 final class APIClient {
 
@@ -29,6 +28,7 @@ final class APIClient {
         lat: Double,
         lon: Double,
         categories: [String],
+        personalAffinity: Double,
         includeTraffic: Bool = true
     ) async throws -> [Place] {
 
@@ -37,7 +37,6 @@ final class APIClient {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        // Updated request body to match new backend fields
         let body: [String: Any] = [
             "lat": lat,
             "lon": lon,
@@ -45,10 +44,14 @@ final class APIClient {
             "limit": 25,
             "categories": categories,
 
-            // Weights (tune as you like; these are reasonable defaults)
-            "prefer_close": 0.55,
+            // Ranking weights
+            "prefer_close": 0.50,
             "prefer_high_rating": 0.15,
-            "prefer_low_traffic": includeTraffic ? 0.30 : 0.0,
+            "prefer_low_traffic": includeTraffic ? 0.20 : 0.0,
+            "prefer_personal": 0.15,
+
+            // Personalization signal
+            "personal_affinity": personalAffinity,
 
             // Feature toggles
             "include_traffic": includeTraffic,
@@ -79,13 +82,9 @@ final class APIClient {
         let phone: String?
         let website: String?
 
-        // We keep this flexible because Geoapify opening_hours can be nested/variable.
-        // If you want a stricter model later, we can define it.
         struct OpeningHours: Codable {
             let raw: String?
 
-            // This is a small trick: sometimes opening_hours can be an object, sometimes a string.
-            // For now we’ll decode it as a generic wrapper.
             init(from decoder: Decoder) throws {
                 let container = try decoder.singleValueContainer()
                 if let s = try? container.decode(String.self) {

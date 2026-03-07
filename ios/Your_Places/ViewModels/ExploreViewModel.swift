@@ -36,8 +36,7 @@ final class ExploreViewModel: ObservableObject {
     }
 
     /// Fetch places for a category if we don't already have them cached.
-    func ensurePlacesLoaded(for option: CategoryOption) async {
-        // If cached already, don’t refetch
+    func ensurePlacesLoaded(for option: CategoryOption, personalAffinity: Double) async {
         if placesByCategoryID[option.id] != nil {
             return
         }
@@ -61,7 +60,8 @@ final class ExploreViewModel: ObservableObject {
             let results = try await recommendationService.fetchRecommendations(
                 lat: coordinate.latitude,
                 lon: coordinate.longitude,
-                categories: option.geoapifyCategories
+                categories: option.geoapifyCategories,
+                personalAffinity: personalAffinity
             )
             placesByCategoryID[option.id] = results
         } catch {

@@ -54,7 +54,6 @@ struct ExploreView: View {
         NavigationStack {
             List {
 
-                // Status
                 Section {
                     if let loc = locationManager.location {
                         Text("Lat: \(loc.coordinate.latitude), Lon: \(loc.coordinate.longitude)")
@@ -73,7 +72,6 @@ struct ExploreView: View {
                     }
                 }
 
-                // Selected (pinned + dropdown)
                 Section(header: Text("Your categories")) {
                     if selectedCategoriesPinned.isEmpty {
                         Text("No categories selected yet. Add some from Suggested below.")
@@ -84,7 +82,13 @@ struct ExploreView: View {
                                 title: option.title,
                                 isExpanded: bindingForSelected(option),
                                 onExpanded: {
-                                    Task { await vm.ensurePlacesLoaded(for: option) }
+                                    let affinity = engagement.affinityNow(for: option.title)
+                                    Task {
+                                        await vm.ensurePlacesLoaded(
+                                            for: option,
+                                            personalAffinity: affinity
+                                        )
+                                    }
                                 }
                             ) {
                                 placesDropdownContent(for: option)
@@ -93,7 +97,6 @@ struct ExploreView: View {
                     }
                 }
 
-                // Unselected (suggested + ranked + dropdown + add)
                 Section(header: Text("Suggested")) {
                     if unselectedCategoriesRanked.isEmpty {
                         Text("You’ve selected everything in the catalog 🎉")
@@ -109,7 +112,13 @@ struct ExploreView: View {
                                     if expandedUnselectedID == option.id { expandedUnselectedID = nil }
                                 },
                                 onExpanded: {
-                                    Task { await vm.ensurePlacesLoaded(for: option) }
+                                    let affinity = engagement.affinityNow(for: option.title)
+                                    Task {
+                                        await vm.ensurePlacesLoaded(
+                                            for: option,
+                                            personalAffinity: affinity
+                                        )
+                                    }
                                 }
                             ) {
                                 placesDropdownContent(for: option)
@@ -169,13 +178,18 @@ struct ExploreView: View {
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 4)
             } else {
+                let affinity = engagement.affinityNow(for: option.title)
+
                 ForEach(places) { place in
                     Button {
-                        // Engagement should be counted on meaningful action (place tap).
                         engagement.recordEngagement(categoryTitle: option.title)
                         selectedPlace = place
                     } label: {
-                        PlaceRow(place: place)
+                        PlaceRow(
+                            place: place,
+                            categoryTitle: option.title,
+                            personalAffinity: affinity
+                        )
                     }
                     .buttonStyle(.plain)
                 }

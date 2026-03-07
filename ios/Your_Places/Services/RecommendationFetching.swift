@@ -17,7 +17,12 @@
 import Foundation
 
 protocol RecommendationFetching {
-    func fetchRecommendations(lat: Double, lon: Double, categories: [String]) async throws -> [Place]
+    func fetchRecommendations(
+        lat: Double,
+        lon: Double,
+        categories: [String],
+        personalAffinity: Double
+    ) async throws -> [Place]
 }
 
 struct RecommendationService: RecommendationFetching {
@@ -27,7 +32,17 @@ struct RecommendationService: RecommendationFetching {
         self.api = api
     }
 
-    func fetchRecommendations(lat: Double, lon: Double, categories: [String]) async throws -> [Place] {
-        try await api.fetchRecommendations(lat: lat, lon: lon, categories: categories)
+    func fetchRecommendations(
+        lat: Double,
+        lon: Double,
+        categories: [String],
+        personalAffinity: Double
+    ) async throws -> [Place] {
+        try await api.fetchRecommendations(
+            lat: lat,
+            lon: lon,
+            categories: categories,
+            personalAffinity: personalAffinity
+        )
     }
 }
